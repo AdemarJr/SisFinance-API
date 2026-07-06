@@ -5,20 +5,32 @@ import { logger } from 'hono/logger';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { config, isSupabaseConfigured, isServiceRoleConfigured } from './config.js';
+import { config, isSupabaseConfigured, isServiceRoleConfigured, isAnonConfigured } from './config.js';
 import { authRoutes } from './routes/auth.js';
 import { dbRoutes } from './routes/db.js';
 import { legacyRoutes } from './routes/legacy.js';
 
 const app = new Hono();
 
+const ALLOWED_ORIGIN_PATTERNS = [
+  /^https:\/\/[\w-]+\.hostingersite\.com$/,
+  /^http:\/\/localhost(:\d+)?$/,
+];
+
+function resolveCorsOrigin(origin: string | undefined): string {
+  if (!origin) return '*';
+  if (ALLOWED_ORIGIN_PATTERNS.some((re) => re.test(origin))) return origin;
+  return origin;
+}
+
 app.use('*', logger());
 app.use(
   '*',
   cors({
-    origin: '*',
+    origin: resolveCorsOrigin,
     allowHeaders: ['Content-Type', 'Authorization'],
-    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    maxAge: 86400,
   })
 );
 
@@ -26,7 +38,9 @@ app.get('/api/health', (c) =>
   c.json({
     status: 'ok',
     supabase: isSupabaseConfigured(),
+    anonKey: isAnonConfigured(),
     serviceRole: isServiceRoleConfigured(),
+    jwt: Boolean(config.jwtSecret && config.jwtSecret !== 'sisfinance-dev-secret-change-me'),
   })
 );
 

@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { getAdminClient, getAnonClient } from '../supabase-admin.js';
-import { isServiceRoleConfigured } from '../config.js';
+import { isServiceRoleConfigured, isAnonConfigured } from '../config.js';
 import { signAuthToken, verifyAuthToken, getBearerToken } from '../auth-jwt.js';
 import type { AuthTokenPayload } from '../auth-jwt.js';
 
@@ -29,6 +29,16 @@ authRoutes.post('/login', async (c) => {
       return c.json({ error: 'Email e senha são obrigatórios' }, 400);
     }
 
+    if (!isAnonConfigured()) {
+      return c.json(
+        {
+          error:
+            'SUPABASE_PUBLISHABLE_KEY (ou SUPABASE_ANON_KEY) não configurada no Railway',
+        },
+        503
+      );
+    }
+
     const anon = getAnonClient();
     const { data, error } = await anon.auth.signInWithPassword({ email, password });
     if (error || !data.user) {
@@ -53,6 +63,10 @@ authRoutes.post('/login', async (c) => {
     });
   } catch (error) {
     console.error('Erro no login:', error);
+    const message = error instanceof Error ? error.message : 'Erro ao fazer login';
+    if (/SUPABASE_|configurada/i.test(message)) {
+      return c.json({ error: message }, 503);
+    }
     return c.json({ error: 'Erro ao fazer login' }, 500);
   }
 });
