@@ -5,7 +5,7 @@ import { logger } from 'hono/logger';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { config, isSupabaseConfigured, isServiceRoleConfigured, isAnonConfigured } from './config.js';
+import { config, isSupabaseConfigured, isServiceRoleConfigured, isAnonConfigured, envPresence } from './config.js';
 import { authRoutes } from './routes/auth.js';
 import { dbRoutes } from './routes/db.js';
 import { legacyRoutes } from './routes/legacy.js';
@@ -41,6 +41,7 @@ app.get('/api/health', (c) =>
     anonKey: isAnonConfigured(),
     serviceRole: isServiceRoleConfigured(),
     jwt: Boolean(config.jwtSecret && config.jwtSecret !== 'sisfinance-dev-secret-change-me'),
+    env: envPresence(),
   })
 );
 
@@ -115,8 +116,13 @@ serve(
     }
     if (!isSupabaseConfigured()) {
       console.warn('⚠️  SUPABASE_URL não configurada');
-    } else if (!isServiceRoleConfigured()) {
-      console.warn('⚠️  Chave secret/service_role ausente — login ok, CRUD pode falhar');
+    } else {
+      if (!isAnonConfigured()) {
+        console.warn('⚠️  SUPABASE_PUBLISHABLE_KEY / SUPABASE_ANON_KEY ausente — login falhará');
+      }
+      if (!isServiceRoleConfigured()) {
+        console.warn('⚠️  Chave secret/service_role ausente — CRUD pode falhar');
+      }
     }
   }
 );

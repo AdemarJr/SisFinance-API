@@ -67,7 +67,7 @@ authRoutes.post('/login', async (c) => {
     if (/SUPABASE_|configurada/i.test(message)) {
       return c.json({ error: message }, 503);
     }
-    return c.json({ error: 'Erro ao fazer login' }, 500);
+    return c.json({ error: message }, 500);
   }
 });
 
