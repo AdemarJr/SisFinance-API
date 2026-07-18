@@ -1,10 +1,11 @@
 import { getAdminClient } from './supabase-admin.js';
 
-export type FilterOp = 'eq' | 'gte' | 'lte' | 'in';
+export type FilterOp = 'eq' | 'gte' | 'lte' | 'in' | 'not';
 
 export interface DbFilter {
   op: FilterOp;
   column: string;
+  /** Para `not`: [operator, value] — ex.: ['is', null] */
   value: unknown;
 }
 
@@ -26,6 +27,13 @@ export interface RpcPayload {
 function applyFilters(query: any, filters: DbFilter[] = []) {
   let q = query;
   for (const filter of filters) {
+    if (filter.op === 'not') {
+      const [operator, value] = Array.isArray(filter.value)
+        ? (filter.value as [string, unknown])
+        : ['is', filter.value];
+      q = q.not(filter.column, operator, value);
+      continue;
+    }
     q = q[filter.op](filter.column, filter.value);
   }
   return q;
