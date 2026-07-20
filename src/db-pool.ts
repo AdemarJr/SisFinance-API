@@ -9,6 +9,8 @@ types.setTypeParser(types.builtins.INT8, (value) => {
   const n = Number(value);
   return Number.isSafeInteger(n) ? n : value;
 });
+// DATE → 'YYYY-MM-DD' (evita Date → ISO UTC que quebra formatadores locais)
+types.setTypeParser(types.builtins.DATE, (value) => value);
 
 let pool: pg.Pool | null = null;
 
