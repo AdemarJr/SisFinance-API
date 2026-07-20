@@ -67,7 +67,8 @@ authRoutes.post('/login', async (c) => {
       return c.json(
         {
           error:
-            'SUPABASE_PUBLISHABLE_KEY (ou SUPABASE_ANON_KEY) não configurada no Railway',
+            'DATABASE_URL não configurada no Railway (Postgres Easypanel). ' +
+            'Adicione a variável e faça redeploy. Supabase não é mais necessário.',
         },
         503,
       );
