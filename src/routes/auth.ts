@@ -1,12 +1,26 @@
 import { Hono } from 'hono';
 import { getAdminClient, getAnonClient } from '../supabase-admin.js';
-import { isServiceRoleConfigured, isAnonConfigured } from '../config.js';
+import {
+  isPostgresConfigured,
+  isServiceRoleConfigured,
+  isAnonConfigured,
+} from '../config.js';
 import { signAuthToken, verifyAuthToken, getBearerToken } from '../auth-jwt.js';
 import type { AuthTokenPayload } from '../auth-jwt.js';
+import {
+  createAdminUserPg,
+  loadClienteSistemaPg,
+  loginWithPostgres,
+  updateUserPasswordPg,
+} from './auth-pg.js';
 
 export const authRoutes = new Hono();
 
 async function loadClienteSistema(authUserId: string) {
+  if (isPostgresConfigured()) {
+    return loadClienteSistemaPg(authUserId);
+  }
+
   if (!isServiceRoleConfigured()) return null;
 
   const supabase = getAdminClient();
@@ -29,13 +43,33 @@ authRoutes.post('/login', async (c) => {
       return c.json({ error: 'Email e senha são obrigatórios' }, 400);
     }
 
+    if (isPostgresConfigured()) {
+      const login = await loginWithPostgres(email, password);
+      if (!login.ok) {
+        return c.json({ error: login.error }, 401);
+      }
+
+      const token = await signAuthToken({
+        sub: login.authUserId,
+        email: login.email,
+        authUserId: login.authUserId,
+        isSuperAdmin: login.isSuperAdmin,
+      });
+
+      return c.json({
+        token,
+        user: { id: login.authUserId, email: login.email },
+        clienteSistema: login.clienteSistema,
+      });
+    }
+
     if (!isAnonConfigured()) {
       return c.json(
         {
           error:
             'SUPABASE_PUBLISHABLE_KEY (ou SUPABASE_ANON_KEY) não configurada no Railway',
         },
-        503
+        503,
       );
     }
 
@@ -64,7 +98,7 @@ authRoutes.post('/login', async (c) => {
   } catch (error) {
     console.error('Erro no login:', error);
     const message = error instanceof Error ? error.message : 'Erro ao fazer login';
-    if (/SUPABASE_|configurada/i.test(message)) {
+    if (/SUPABASE_|DATABASE_|configurada/i.test(message)) {
       return c.json({ error: message }, 503);
     }
     return c.json({ error: message }, 500);
@@ -108,6 +142,11 @@ authRoutes.post('/admin/users', async (c) => {
       limite_empresas: number;
       status: string;
     }>();
+
+    if (isPostgresConfigured()) {
+      const id = await createAdminUserPg(body);
+      return c.json({ success: true, authUserId: id });
+    }
 
     const admin = getAdminClient();
     const { data: authData, error: authError } = await admin.auth.admin.createUser({
@@ -154,6 +193,12 @@ authRoutes.put('/admin/users/:authUserId/password', async (c) => {
   try {
     const authUserId = c.req.param('authUserId');
     const { password } = await c.req.json<{ password: string }>();
+
+    if (isPostgresConfigured()) {
+      await updateUserPasswordPg(authUserId, password);
+      return c.json({ success: true });
+    }
+
     const admin = getAdminClient();
     const { error } = await admin.auth.admin.updateUserById(authUserId, { password });
     if (error) return c.json({ error: error.message }, 400);

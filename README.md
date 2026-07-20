@@ -35,15 +35,29 @@ npm run create-admin
 
 1. Push este repo no GitHub
 2. [New Project → GitHub](https://railway.com/new/github)
-3. Variáveis:
+3. Variáveis (modo **Easypanel Postgres**):
 
 | Variável | Descrição |
 |----------|-----------|
 | `JWT_SECRET` | Segredo dos tokens da API |
-| `SUPABASE_URL` | URL do projeto Supabase |
-| `SUPABASE_PUBLISHABLE_KEY` | Login (anon) |
-| `SUPABASE_SECRET_KEY` | CRUD Postgres (service role) |
+| `DATABASE_URL` | Postgres Easypanel (`pyrou-finace`) |
 | `NODE_ENV` | `production` |
+
+Exemplo:
+
+```env
+DATABASE_URL=postgresql://USUARIO:SENHA_URL_ENCODED@easypanel.pyrou.com.br:5432/pyrou-finace?sslmode=disable
+```
+
+Ver [`RAILWAY-ENV.md`](./RAILWAY-ENV.md) para copiar/colar no Railway.
+
+**Modo legado Supabase** (opcional): `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`.
+
+Após importar o dump no Postgres, defina a senha do admin:
+
+```bash
+npm run set-admin-password
+```
 
 4. Build: `npm install && npm run build`  
 5. Start: `npm start`  

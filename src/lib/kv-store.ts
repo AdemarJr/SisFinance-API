@@ -1,34 +1,15 @@
-import { getAdminClient } from '../supabase-admin.js';
+import { isPostgresConfigured } from '../config.js';
+import * as kvPg from './kv-store-pg.js';
+import * as kvSupabase from './kv-store-supabase.js';
 
-export const set = async (key: string, value: unknown): Promise<void> => {
-  const supabase = getAdminClient();
-  const { error } = await supabase.from('kv_store_b1600651').upsert({ key, value });
-  if (error) throw new Error(error.message);
-};
+export const set = (key: string, value: unknown) =>
+  isPostgresConfigured() ? kvPg.set(key, value) : kvSupabase.set(key, value);
 
-export const get = async (key: string): Promise<unknown> => {
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from('kv_store_b1600651')
-    .select('value')
-    .eq('key', key)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return data?.value;
-};
+export const get = (key: string) =>
+  isPostgresConfigured() ? kvPg.get(key) : kvSupabase.get(key);
 
-export const del = async (key: string): Promise<void> => {
-  const supabase = getAdminClient();
-  const { error } = await supabase.from('kv_store_b1600651').delete().eq('key', key);
-  if (error) throw new Error(error.message);
-};
+export const del = (key: string) =>
+  isPostgresConfigured() ? kvPg.del(key) : kvSupabase.del(key);
 
-export const getByPrefix = async (prefix: string): Promise<unknown[]> => {
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from('kv_store_b1600651')
-    .select('value')
-    .like('key', `${prefix}%`);
-  if (error) throw new Error(error.message);
-  return data?.map((d) => d.value) ?? [];
-};
+export const getByPrefix = (prefix: string) =>
+  isPostgresConfigured() ? kvPg.getByPrefix(prefix) : kvSupabase.getByPrefix(prefix);

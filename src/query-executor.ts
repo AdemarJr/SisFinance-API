@@ -1,4 +1,6 @@
 import { getAdminClient } from './supabase-admin.js';
+import { isPostgresConfigured } from './config.js';
+import { executeDbQueryPg, executeRpcPg } from './query-executor-pg.js';
 
 export type FilterOp = 'eq' | 'gte' | 'lte' | 'in' | 'not';
 
@@ -40,6 +42,10 @@ function applyFilters(query: any, filters: DbFilter[] = []) {
 }
 
 export async function executeDbQuery(payload: DbQueryPayload) {
+  if (isPostgresConfigured()) {
+    return executeDbQueryPg(payload);
+  }
+
   const supabase = getAdminClient();
   const filters = payload.filters ?? [];
 
@@ -88,6 +94,10 @@ export async function executeDbQuery(payload: DbQueryPayload) {
 }
 
 export async function executeRpc(payload: RpcPayload) {
+  if (isPostgresConfigured()) {
+    return executeRpcPg(payload.function, payload.params ?? {});
+  }
+
   const supabase = getAdminClient();
   const result = await supabase.rpc(payload.function, payload.params ?? {});
   return { data: result.data, error: result.error };

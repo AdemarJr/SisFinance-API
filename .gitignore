@@ -4,8 +4,11 @@ node_modules/
 # Build output
 dist/
 
-# Environment
+# Environment — NUNCA commitar (credenciais Railway / Easypanel)
 .env
+.env.local
+.env.production
+.env.development
 .env.*
 !.env.example
 

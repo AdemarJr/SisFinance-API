@@ -5,7 +5,7 @@ import { logger } from 'hono/logger';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { config, isSupabaseConfigured, isServiceRoleConfigured, isAnonConfigured, envPresence } from './config.js';
+import { config, isSupabaseConfigured, isServiceRoleConfigured, isAnonConfigured, envPresence, isPostgresConfigured } from './config.js';
 import { authRoutes } from './routes/auth.js';
 import { dbRoutes } from './routes/db.js';
 import { legacyRoutes } from './routes/legacy.js';
@@ -37,6 +37,7 @@ app.use(
 app.get('/api/health', (c) =>
   c.json({
     status: 'ok',
+    postgres: isPostgresConfigured(),
     supabase: isSupabaseConfigured(),
     anonKey: isAnonConfigured(),
     serviceRole: isServiceRoleConfigured(),
@@ -114,8 +115,10 @@ serve(
       const distOk = existsSync(join(distDir, 'index.html'));
       console.log(`📦 Frontend estático: ${distDir} (${distOk ? 'ok' : 'NÃO ENCONTRADO'})`);
     }
-    if (!isSupabaseConfigured()) {
-      console.warn('⚠️  SUPABASE_URL não configurada');
+    if (isPostgresConfigured()) {
+      console.log('🐘 Postgres direto (DATABASE_URL)');
+    } else if (!isSupabaseConfigured()) {
+      console.warn('⚠️  DATABASE_URL ou SUPABASE_URL não configurada');
     } else {
       if (!isAnonConfigured()) {
         console.warn('⚠️  SUPABASE_PUBLISHABLE_KEY / SUPABASE_ANON_KEY ausente — login falhará');

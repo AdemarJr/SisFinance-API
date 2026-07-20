@@ -13,6 +13,7 @@ await build({
   target: 'node22',
   format: 'esm',
   outfile: 'dist/index.js',
+  external: ['pg', 'pg-native'],
   logLevel: 'info',
 });
 
