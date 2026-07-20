@@ -1,7 +1,14 @@
 import pg from 'pg';
 import { config, isPostgresConfigured } from './config.js';
 
-const { Pool } = pg;
+const { Pool, types } = pg;
+
+// NUMERIC / DECIMAL → number (node-pg devolve string por padrão)
+types.setTypeParser(types.builtins.NUMERIC, (value) => parseFloat(value));
+types.setTypeParser(types.builtins.INT8, (value) => {
+  const n = Number(value);
+  return Number.isSafeInteger(n) ? n : value;
+});
 
 let pool: pg.Pool | null = null;
 

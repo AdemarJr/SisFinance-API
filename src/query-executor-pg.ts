@@ -8,8 +8,9 @@ function assertIdentifier(name: string): string {
   return name;
 }
 
+/** PostgREST embeds (`fornecedores(nome)`, `plano:planos(*)`) não existem no SQL puro. */
 function normalizeSelect(select?: string): string {
-  if (!select || select.includes(':')) return '*';
+  if (!select || select.includes(':') || select.includes('(')) return '*';
   return select;
 }
 
