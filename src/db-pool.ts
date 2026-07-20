@@ -1,5 +1,9 @@
 import pg from 'pg';
+import dns from 'node:dns';
 import { config, isPostgresConfigured } from './config.js';
+
+// Prefere IPv4 (Railway às vezes falha em hosts só-IPv6 / ordem AAAA)
+dns.setDefaultResultOrder('ipv4first');
 
 const { Pool, types } = pg;
 
@@ -14,17 +18,22 @@ types.setTypeParser(types.builtins.DATE, (value) => value);
 
 let pool: pg.Pool | null = null;
 
+function poolOptions(): pg.PoolConfig {
+  return {
+    connectionString: config.databaseUrl,
+    max: 10,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 15_000,
+    ssl: false,
+  };
+}
+
 export function getPool(): pg.Pool {
   if (!isPostgresConfigured()) {
     throw new Error('DATABASE_URL (ou PGHOST/PGDATABASE/PGUSER) não configurada');
   }
   if (!pool) {
-    pool = new Pool({
-      connectionString: config.databaseUrl,
-      max: 10,
-      idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 10_000,
-    });
+    pool = new Pool(poolOptions());
     pool.on('error', (err) => {
       console.error('Erro no pool Postgres:', err.message);
     });
@@ -37,4 +46,28 @@ export async function pgQuery<T extends pg.QueryResultRow = pg.QueryResultRow>(
   params: unknown[] = [],
 ): Promise<pg.QueryResult<T>> {
   return getPool().query<T>(text, params);
+}
+
+/** Ping real ao banco (para /api/health). */
+export async function pingDatabase(): Promise<{
+  ok: boolean;
+  latencyMs?: number;
+  database?: string;
+  error?: string;
+}> {
+  if (!isPostgresConfigured()) {
+    return { ok: false, error: 'DATABASE_URL / PGHOST não configurado' };
+  }
+  const started = Date.now();
+  try {
+    const result = await getPool().query<{ db: string }>('SELECT current_database() AS db');
+    return {
+      ok: true,
+      latencyMs: Date.now() - started,
+      database: result.rows[0]?.db,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { ok: false, latencyMs: Date.now() - started, error: message };
+  }
 }

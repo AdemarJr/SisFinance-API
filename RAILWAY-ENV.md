@@ -2,25 +2,33 @@
 
 Configure em **Railway → seu serviço → Variables**.
 
-## Postgres Easypanel (recomendado)
+## Forma recomendada (evita timeout por senha com `@`)
+
+Use variáveis **separadas** — a API monta a URL com encode automático:
 
 | Variável | Valor |
 |----------|-------|
 | `NODE_ENV` | `production` |
-| `JWT_SECRET` | *(mesmo segredo que já usa — 64 chars)* |
-| `DATABASE_URL` | `postgresql://pyrouwebdb:SENHA_URL_ENCODED@easypanel.pyrou.com.br:5432/pyrou-finace?sslmode=disable` |
+| `JWT_SECRET` | *(seu segredo de 64 chars)* |
+| `PGHOST` | `easypanel.pyrou.com.br` |
+| `PGPORT` | `5432` |
+| `PGDATABASE` | `pyrou-finace` |
+| `PGUSER` | `pyrouwebdb` |
+| `PGPASSWORD` | `p!r@uW3b*26` *(senha literal, sem encode)* |
+| `PGSSLMODE` | `disable` |
 
-**Senha com caracteres especiais:** na URL encode `@` → `%40` e `*` → `%2A`.
+> **Não** use `DATABASE_URL` se a senha tiver `@` ou `*` — o parser interpreta o host errado e o login dá **Connection terminated due to connection timeout**.
 
-Exemplo (substitua `SENHA_URL_ENCODED` pela senha real, com encode):
+Se ainda quiser `DATABASE_URL`, a senha **precisa** estar encoded:
+
+- `@` → `%40`
+- `*` → `%2A`
 
 ```text
-postgresql://pyrouwebdb:SENHA_URL_ENCODED@easypanel.pyrou.com.br:5432/pyrou-finace?sslmode=disable
+postgresql://pyrouwebdb:p!r%40uW3b%2A26@easypanel.pyrou.com.br:5432/pyrou-finace?sslmode=disable
 ```
 
 ## Remover do Railway (modo Supabase legado)
-
-Se migrar 100% para Easypanel, **apague** estas variáveis:
 
 - `SUPABASE_URL`
 - `SUPABASE_PUBLISHABLE_KEY`
@@ -28,20 +36,32 @@ Se migrar 100% para Easypanel, **apague** estas variáveis:
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 
-## Após deploy
+Se existir um plugin Postgres do Railway gerando `DATABASE_URL` automática, **desvincule** ou sobrescreva com as variáveis `PG*` acima.
 
-1. Health: `GET https://sisfinance-api.up.railway.app/api/health`  
-   Deve retornar `"postgres": true`
-2. Login: `admin@sisfinance.com` / `Admin@123456`  
-   *(requer coluna `senha_hash` — ver abaixo)*
+## Firewall Easypanel
 
-## Senha do admin no Postgres
+No serviço Postgres do Easypanel, confira se a porta **5432** está exposta publicamente (External / Domains).  
+O Railway precisa alcançar `easypanel.pyrou.com.br:5432` da internet.
 
-Rode **uma vez** no Easypanel (SQL) ou localmente:
+## Após deploy — validar
 
 ```bash
-cd SisFinance-API
-npm run set-admin-password
+curl https://sisfinance-api.up.railway.app/api/health
 ```
 
-Ou SQL manual após deploy da migration `database/add-senha-hash.sql`.
+Esperado:
+
+```json
+{
+  "status": "ok",
+  "postgres": true,
+  "db": { "ok": true, "database": "pyrou-finace", "latencyMs": 50 }
+}
+```
+
+Se `db.ok` for `false` e `error` tiver `timeout`, a URL/firewall ainda está errado.
+
+## Login
+
+`admin@sisfinance.com` / `Admin@123456`  
+(requer `senha_hash` — `npm run set-admin-password`)

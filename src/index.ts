@@ -6,6 +6,7 @@ import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config, isSupabaseConfigured, isServiceRoleConfigured, isAnonConfigured, envPresence, isPostgresConfigured } from './config.js';
+import { pingDatabase } from './db-pool.js';
 import { authRoutes } from './routes/auth.js';
 import { dbRoutes } from './routes/db.js';
 import { legacyRoutes } from './routes/legacy.js';
@@ -34,17 +35,19 @@ app.use(
   })
 );
 
-app.get('/api/health', (c) =>
-  c.json({
-    status: 'ok',
+app.get('/api/health', async (c) => {
+  const dbPing = isPostgresConfigured() ? await pingDatabase() : null;
+  return c.json({
+    status: dbPing && !dbPing.ok ? 'degraded' : 'ok',
     postgres: isPostgresConfigured(),
+    db: dbPing,
     supabase: isSupabaseConfigured(),
     anonKey: isAnonConfigured(),
     serviceRole: isServiceRoleConfigured(),
     jwt: Boolean(config.jwtSecret && config.jwtSecret !== 'sisfinance-dev-secret-change-me'),
     env: envPresence(),
-  })
-);
+  });
+});
 
 app.route('/api/auth', authRoutes);
 app.route('/api/db', dbRoutes);

@@ -14,20 +14,20 @@ function env(name: string): string {
 }
 
 function buildDatabaseUrl(): string {
-  const direct = env('DATABASE_URL');
-  if (direct) return direct;
-
+  // Preferir variáveis separadas: senha com @ * ! não precisa de encode na URL
   const host = env('PGHOST');
   const database = env('PGDATABASE');
   const user = env('PGUSER');
   const password = env('PGPASSWORD');
   const port = env('PGPORT') || '5432';
-  if (!host || !database || !user) return '';
+  if (host && database && user) {
+    const encodedUser = encodeURIComponent(user);
+    const encodedPassword = encodeURIComponent(password);
+    const sslmode = env('PGSSLMODE') || 'disable';
+    return `postgresql://${encodedUser}:${encodedPassword}@${host}:${port}/${database}?sslmode=${sslmode}`;
+  }
 
-  const encodedUser = encodeURIComponent(user);
-  const encodedPassword = encodeURIComponent(password);
-  const sslmode = env('PGSSLMODE') || 'disable';
-  return `postgresql://${encodedUser}:${encodedPassword}@${host}:${port}/${database}?sslmode=${sslmode}`;
+  return env('DATABASE_URL');
 }
 
 export const config = {
