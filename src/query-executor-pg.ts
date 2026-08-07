@@ -14,6 +14,30 @@ function normalizeSelect(select?: string): string {
   return select;
 }
 
+/** Extrai YYYY-MM-DD de string/Date/ISO para comparar colunas `date` sem fuso. */
+function asDateParam(value: unknown): unknown {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  if (typeof value === 'string') {
+    const match = value.trim().match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) return match[1];
+  }
+  return value;
+}
+
+function looksLikeDateColumn(column: string): boolean {
+  return (
+    column === 'data' ||
+    column.startsWith('data_') ||
+    column.endsWith('_em') ||
+    column.includes('date')
+  );
+}
+
 function buildWhere(filters: DbFilter[], startIdx = 1) {
   const clauses: string[] = [];
   const values: unknown[] = [];
@@ -21,22 +45,38 @@ function buildWhere(filters: DbFilter[], startIdx = 1) {
 
   for (const filter of filters) {
     const column = assertIdentifier(filter.column);
+    const dateCol = looksLikeDateColumn(column);
 
     if (filter.op === 'eq') {
-      clauses.push(`${column} = $${idx++}`);
-      values.push(filter.value);
+      if (dateCol) {
+        clauses.push(`${column}::date = $${idx++}::date`);
+        values.push(asDateParam(filter.value));
+      } else {
+        clauses.push(`${column} = $${idx++}`);
+        values.push(filter.value);
+      }
       continue;
     }
 
     if (filter.op === 'gte') {
-      clauses.push(`${column} >= $${idx++}`);
-      values.push(filter.value);
+      if (dateCol) {
+        clauses.push(`${column}::date >= $${idx++}::date`);
+        values.push(asDateParam(filter.value));
+      } else {
+        clauses.push(`${column} >= $${idx++}`);
+        values.push(filter.value);
+      }
       continue;
     }
 
     if (filter.op === 'lte') {
-      clauses.push(`${column} <= $${idx++}`);
-      values.push(filter.value);
+      if (dateCol) {
+        clauses.push(`${column}::date <= $${idx++}::date`);
+        values.push(asDateParam(filter.value));
+      } else {
+        clauses.push(`${column} <= $${idx++}`);
+        values.push(filter.value);
+      }
       continue;
     }
 
