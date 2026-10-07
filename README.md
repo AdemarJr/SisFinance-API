@@ -1,16 +1,16 @@
 # SisFinance API
 
-Backend REST do SisFinance. **Supabase = apenas Postgres + Auth admin** (nenhum acesso direto do browser).
+Backend REST do SisFinance. O browser **não** acessa o banco — só esta API (JWT + Postgres).
 
-- **Deploy:** [Railway](https://railway.com/new/github)
-- **Frontend:** repositório `SisFinance` (Hostinger)
+- **Deploy preferido:** EasyPanel (`Dockerfile` + `easypanel.env.example`)
+- **Frontend:** repositório `SisFinance` (EasyPanel)
 
 ## Arquitetura
 
 ```text
-SisFinance (React)  →  esta API  →  Postgres (Supabase)
+SisFinance (React)  →  esta API  →  Postgres (EasyPanel / pyrou-finace)
                          ↑
-                    JWT + service_role
+                    JWT + pg
 ```
 
 ## Desenvolvimento local
@@ -25,46 +25,29 @@ npm run dev
 
 ## Banco de dados
 
-Scripts em [`database/`](./database/). Rode no Supabase SQL Editor, depois:
-
-```bash
-npm run create-admin
-```
-
-## Deploy Railway
-
-1. Push este repo no GitHub
-2. [New Project → GitHub](https://railway.com/new/github)
-3. Variáveis (modo **Easypanel Postgres**):
-
-| Variável | Descrição |
-|----------|-----------|
-| `JWT_SECRET` | Segredo dos tokens da API |
-| `DATABASE_URL` | Postgres Easypanel (`pyrou-finace`) |
-| `NODE_ENV` | `production` |
-
-Exemplo:
-
-```env
-DATABASE_URL=postgresql://USUARIO:SENHA_URL_ENCODED@easypanel.pyrou.com.br:5432/pyrou-finace?sslmode=disable
-```
-
-Ver [`RAILWAY-ENV.md`](./RAILWAY-ENV.md) para copiar/colar no Railway.
-
-**Modo legado Supabase** (opcional): `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`.
-
-Após importar o dump no Postgres, defina a senha do admin:
+No EasyPanel: dump em `SisFinance/sisfinance-db/` + `post-import-easypanel.sql`, depois:
 
 ```bash
 npm run set-admin-password
 ```
 
-4. Build: `npm install && npm run build`  
-5. Start: `npm start`  
-6. Health: `/api/health`  
-7. Domínio: Settings → Networking → Generate Domain
+Scripts legados em [`database/`](./database/).
 
-**Não** use `SERVE_STATIC` no Railway.
+## Deploy EasyPanel
+
+1. Push este repo no GitHub
+2. App no projeto `apps-pyrou`, source GitHub, **Build = Dockerfile**
+3. Domínio na porta **3001**, health `/api/health`
+4. Env: copiar [`easypanel.env.example`](./easypanel.env.example) (usar `PG*` se a senha tiver `@`/`*`)
+5. Após o dump: `npm run set-admin-password` (com `ADMIN_EMAIL` / `ADMIN_PASSWORD`)
+
+Guia do front + cutover: `SisFinance/EASYPANEL.md`.
+
+**Não** use `SERVE_STATIC` no EasyPanel (front é serviço nginx separado).
+
+## Deploy Railway (legado)
+
+Ver [`RAILWAY-ENV.md`](./RAILWAY-ENV.md). Build/start: `npm install && npm run build` / `npm start`.
 
 ## Endpoints
 
@@ -79,8 +62,8 @@ npm run set-admin-password
 
 ## Frontend (produção)
 
-No build do Hostinger:
+No build EasyPanel do front:
 
 ```env
-VITE_API_URL=https://SEU-APP.up.railway.app/api
+VITE_API_URL=https://SEU-DOMINIO-API/api
 ```
